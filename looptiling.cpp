@@ -1,9 +1,11 @@
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
 #include <ctime>
 #include <cstdlib>
 
-const int MATRIX_SIZE = 500; // Change this value to increase matrix A and B
-const int TILE_SIZE = 25; // Change this value to adjust tile size (Use 1, 25, 100).
+const int MATRIX_SIZE = 128; // Matrix size for CNN.
 
 // Function to initialize a matrix with random values
 void initializeMatrix(int matrix[MATRIX_SIZE][MATRIX_SIZE]) {
@@ -15,7 +17,7 @@ void initializeMatrix(int matrix[MATRIX_SIZE][MATRIX_SIZE]) {
 }
 
 // Function to multiply two matrices using loop tiling
-void multiplyMatricesWithTiling(int A[MATRIX_SIZE][MATRIX_SIZE], int B[MATRIX_SIZE][MATRIX_SIZE], int result[MATRIX_SIZE][MATRIX_SIZE]) {
+void multiplyMatricesWithTiling(int A[MATRIX_SIZE][MATRIX_SIZE], int B[MATRIX_SIZE][MATRIX_SIZE], int result[MATRIX_SIZE][MATRIX_SIZE], int TILE_SIZE) {
     for (int i0 = 0; i0 < MATRIX_SIZE; i0 += TILE_SIZE) {
         for (int j0 = 0; j0 < MATRIX_SIZE; j0 += TILE_SIZE) {
             for (int k0 = 0; k0 < MATRIX_SIZE; k0 += TILE_SIZE) {
@@ -32,37 +34,85 @@ void multiplyMatricesWithTiling(int A[MATRIX_SIZE][MATRIX_SIZE], int B[MATRIX_SI
 }
 
 int main() {
+    // Check next tile size in CSV
+    std::ifstream inputFile("looptilingdata.csv");
+    int next_tile_size = 5;
+    if (inputFile.is_open()) {
+        std::vector<int> tile_sizes;
+        std::string line;
+        while (std::getline(inputFile, line)) {
+            std::istringstream iss(line);
+            std::string token;
+            std::getline(iss, token, ',');
+            tile_sizes.push_back(std::stoi(token));
+        }
+        inputFile.close();
+
+        if (!tile_sizes.empty()) {
+            next_tile_size = tile_sizes.back() + 1;
+        }
+    }
+
+    // Append the new tile size to CSV
+    std::ofstream outputFile("looptilingdata.csv", std::ios::app);
+    if (outputFile.is_open()) {
+        outputFile << next_tile_size << ",0\n";
+        outputFile.close();
+    } else {
+        std::cerr << "Error: Cannot open file." << std::endl;
+        return 1;
+    }
+
     int matrixA[MATRIX_SIZE][MATRIX_SIZE];
     int matrixB[MATRIX_SIZE][MATRIX_SIZE];
     int resultMatrix[MATRIX_SIZE][MATRIX_SIZE];
 
-    // Seed the random number generator
     srand(time(nullptr));
 
-    double average_time = 0.0;
-    int num_trials = 3;
+    initializeMatrix(matrixA);
+    initializeMatrix(matrixB);
 
-    for (int trial = 0; trial < num_trials; trial++) {
-        // Initialize the matrices with random values
-        initializeMatrix(matrixA);
-        initializeMatrix(matrixB);
+    clock_t start_time = clock();
 
-        clock_t start_time = clock();
+    // Multiply the matrices using loop tiling
+    multiplyMatricesWithTiling(matrixA, matrixB, resultMatrix, next_tile_size);
 
-        // Multiply the matrices using loop tiling
-        multiplyMatricesWithTiling(matrixA, matrixB, resultMatrix);
+    clock_t end_time = clock();
+    double processing_time = static_cast<double>(end_time - start_time) / CLOCKS_PER_SEC;
 
-        clock_t end_time = clock();
-        double processing_time = static_cast<double>(end_time - start_time) / CLOCKS_PER_SEC;
+    // Update time in CSV file
+    inputFile.open("looptilingdata.csv");
+    if (inputFile.is_open()) {
+        std::string tempFileName = "temp.csv";
+        std::ofstream tempFile(tempFileName);
 
-        std::cout << "Matrix multiplication time with loop tiling (Trial " << trial + 1 << "): " << processing_time << " seconds" << std::endl;
+        std::string line;
+        while (std::getline(inputFile, line)) {
+            std::istringstream iss(line);
+            std::string token;
+            std::getline(iss, token, ',');
+            int tileSize = std::stoi(token);
+            if (tileSize == next_tile_size) {
+                // Overwrite the processing time
+                tempFile << next_tile_size << "," << processing_time << "\n";
+            } else {
+                tempFile << line << "\n";
+            }
+        }
+        inputFile.close();
+        tempFile.close();
 
-        average_time += processing_time;
+        // Replace the original file with temporary file
+        if (std::rename(tempFileName.c_str(), "looptilingdata.csv") != 0) {
+            std::cerr << "Error: Cannot update file." << std::endl;
+            return 1;
+        }
+    } else {
+        std::cerr << "Error: Cannot open file." << std::endl;
+        return 1;
     }
 
-    average_time /= num_trials;
-
-    std::cout << "Average time over " << num_trials << " trials: " << average_time << " seconds" << std::endl;
+    std::cout << "Tile Size: " << next_tile_size << ", Time: " << processing_time << " seconds" << std::endl;
 
     return 0;
 }

@@ -5,7 +5,7 @@
 #include <ctime>
 #include <cstdlib>
 
-const int MATRIX_SIZE = 128; // Matrix size for CNN.
+const int MATRIX_SIZE = 84; // Matrix size for CNN.
 
 // Function to initialize a matrix with random values
 void initializeMatrix(int matrix[MATRIX_SIZE][MATRIX_SIZE]) {

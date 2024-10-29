@@ -1,4 +1,4 @@
-<h1>An Analysis on Efficient Convolution Compiling Techniques</h1>
+<h1>An Analysis on Efficient Convolution Compiler Techniques</h1>
 CS Seminar Research with Dr. Megan Thomas @ Cal State Stanislaus | Aug. - Dec. 2023<br><br>
 
 **Abstract:**<br>
